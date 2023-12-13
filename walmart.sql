@@ -1,0 +1,330 @@
+-- Create database
+CREATE DATABASE IF NOT EXISTS SalesWalmart;
+
+-- Create table
+CREATE TABLE IF NOT EXISTS sales(
+	invoice_id VARCHAR(30) NOT NULL PRIMARY KEY,
+    branch VARCHAR(5) NOT NULL,
+    city VARCHAR(30) NOT NULL,
+    customer_type VARCHAR(30) NOT NULL,
+    gender VARCHAR(30) NOT NULL,
+    product_line VARCHAR(100) NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    quantity INT NOT NULL,
+    tax_pct FLOAT(6,4) NOT NULL,
+    total DECIMAL(12, 4) NOT NULL,
+    date DATETIME NOT NULL,
+    time TIME NOT NULL,
+    payment VARCHAR(15) NOT NULL,
+    cogs DECIMAL(10,2) NOT NULL,
+    gross_margin_pct FLOAT(11,9),
+    gross_income DECIMAL(12, 4),
+    rating FLOAT(2, 1)
+);
+
+
+---------- data Cleaning---We have already givenconstraint for not null 
+
+SELECT *
+FROM sales;
+
+----- Add the time_of_day column
+
+SELECT time,
+(CASE
+WHEN `time` BETWEEN '00:00:00' AND '12:00:00' THEN 'Morning'
+WHEN `time` BETWEEN '12:01:00' AND '16:00:00' THEN 'Afternoon'
+ELSE 'Evening'
+END ) AS time_of_day
+FROM sales;
+
+ALTER TABLE sales
+ADD COLUMN time_of_day VARCHAR(20);
+
+-- now putting data into table
+UPDATE sales
+SET time_of_day=  (CASE
+WHEN `time` BETWEEN '00:00:00' AND '12:00:00' THEN 'Morning'
+WHEN `time` BETWEEN '12:01:00' AND '16:00:00' THEN 'Afternoon'
+ELSE 'Evening'
+END );
+
+
+-- Add day_name column
+SELECT date,
+ dayname(date) AS day_name
+FROM sales;
+
+ALTER TABLE sales
+ADD COLUMN day_name VARCHAR(20);
+
+UPDATE sales
+SET day_name = dayname(date);
+
+-- Add month_name column
+
+SELECT date,
+MONTHNAME(date) AS month_names
+FROM sales;
+
+ALTER TABLE sales
+ADD COLUMN month_names VARCHAR(20);
+
+UPDATE sales
+SET month_names = MONTHNAME(date);
+
+
+
+-- --------------------------------------------------------------------
+-- ---------------------------- Generic ------------------------------
+-- --------------------------------------------------------------------
+-- How many unique cities does the data have?
+
+SELECT COUNT(DISTINCT(city))
+FROM sales;
+
+-- WE have 3 UNIQUE cities.
+
+-- In which city is each branch?
+SELECT DISTINCT(city),
+branch
+FROM sales;
+
+-- --------------------------------------------------------------------
+-- ---------------------------- Product -------------------------------
+-- --------------------------------------------------------------------
+
+-- How many unique product lines does the data have?
+SELECT COUNT(DISTINCT(product_line))
+FROM sales;
+
+-- What is the most common payment method?
+
+SELECT payment
+FROM sales
+GROUP BY payment
+ORDER BY payment DESC;
+
+-- What is the count of most selling product line
+
+SELECT product_line,
+COUNT(product_line) AS COUNT
+FROM sales
+GROUP BY product_line
+ORDER BY COUNT DESC;
+
+-- What is the total revenue by month
+SELECT month_names AS month,
+ROUND(SUM(total),2) AS Revenue_of_the_month
+FROM sales
+GROUP BY month_names
+ORDER BY Revenue_of_the_month DESC;
+
+-- What month had the largest COGS?
+
+SELECT month_names AS month,
+SUM(cogs) AS cogs_of_month
+FROM sales
+GROUP BY month_names
+ORDER BY cogs_of_month DESC;
+
+-- What product line had the largest revenue?
+
+SELECT product_line,
+SUM(total) AS Total_Revenue
+FROM sales
+GROUP BY product_line
+ORDER BY Total_Revenue DESC;
+
+-- -- What is the city with the largest revenue?
+
+SELECT city,
+SUM(total) AS Largest_revenue
+FROM sales
+GROUP BY city
+ORDER BY Largest_revenue DESC;
+
+-- What product line had the largest AVerage VAT?
+
+SELECT product_line,
+	AVG(tax_pct) AS VAT
+FROM sales
+GROUP BY product_line
+ORDER BY VAT DESC
+LIMIT 1;
+
+-- Fetch each product line and add a column to those product 
+-- line showing "Good", "Bad". Good if its quantity is greater than AVG SALES
+SELECT AVG(quantity)
+FROM sales;
+
+
+SELECT product_line,
+(CASE
+WHEN AVG(quantity)>5.5 THEN "GOOD"
+ELSE "BAD"
+END) AS GOOD_OR_BAD
+FROM sales
+GROUP BY product_line
+ORDER BY GOOD_OR_BAD DESC;
+
+-- Which branch sold more products than average product sold?
+SELECT branch,
+SUM(quantity) AS Quantity
+FROM sales
+GROUP BY branch
+HAVING SUM(quantity) > (SELECT AVG(quantity) FROM sales);
+
+-- -- What is the most common product line by gender
+SELECT product_line,
+       gender,
+	COUNT(gender) AS COIUNT
+    FROM sales
+    GROUP BY product_line, gender
+    ORDER BY COIUNT DESC;
+    
+    ---- What is the average rating of each product line
+    SELECT product_line,
+           AVG(rating) AS Rating
+	FROM sales
+    GROUP BY product_line
+    ORDER BY Rating DESC;
+    
+    -- --------------------------------------------------------------------
+-- ---------------------------- Sales ---------------------------------
+-- --------------------------------------------------------------------
+
+-- Number of sales made in each time of the day per weekday 
+    SELECT time_of_day,
+    COUNT(quantity) AS COUNT
+    FROM sales
+    WHERE day_name= "Sunday"     -- we can take any week dayname as per requirement
+    GROUP BY time_of_day
+    ORDER BY COUNT DESC;
+    -- Evenings experience most sales, the stores are 
+-- filled during the evening hours
+
+
+-- Which of the customer types brings the most revenue?
+
+SELECT customer_type,
+SUM(total) AS Revenue
+FROM sales
+GROUP BY customer_type
+ORDER BY Revenue DESC;
+
+-- Which city has the largest tax/VAT percent?
+
+SELECT city,
+AVG(tax_pct) AS Largest
+FROM sales
+GROUP BY city
+ORDER BY Largest
+LIMIT 1;
+
+-- Which customer type pays the most in VAT?
+
+SELECT customer_type,
+AVG(tax_pct) AS VAT
+FROM sales
+GROUP BY customer_type
+ORDER BY VAT;
+
+-- --------------------------------------------------------------------
+-- -------------------------- Customers -------------------------------
+-- --------------------------------------------------------------------
+
+-- How many unique customer types does the data have?
+SELECT DISTINCT(customer_type)
+FROM sales;
+
+-- How many unique payment methods does the data have?
+
+SELECT DISTINCT(payment)
+FROM sales;
+
+-- What is the most common customer type?
+SELECT customer_type,
+COUNT(*) AS COUNT
+FROM sales
+GROUP BY customer_type
+ORDER BY COUNT DESC;
+
+-- Which customer type buys the most?
+
+SELECT customer_type,
+COUNT(*) AS COUNT
+FROM sales
+GROUP BY customer_type
+ORDER BY COUNT DESC;
+
+-- What is the gender of most of the customers?
+
+SELECT gender,
+COUNT(*) AS COUNT
+FROM sales
+GROUP BY gender
+ORDER BY COUNT DESC;
+
+-- What is the gender distribution per branch?
+
+SELECT gender,
+       COUNT(*) AS COUNT
+FROM sales
+WHERE branch = 'C'
+GROUP BY gender
+ORDER BY COUNT DESC;
+
+-- Gender per branch is more or less the same hence, I don't think has
+-- an effect of the sales per branch and other factors.
+
+
+-- Which time of the day do customers give most ratings?
+
+SELECT time_of_day,
+        AVG(rating) AS Rating
+FROM sales
+GROUP BY time_of_day
+ORDER BY Rating DESC;
+-- Looks like time of the day does not really affect the rating, its
+-- more or less the same rating each time of the day.alter
+
+
+-- Which time of the day do customers give most ratings per branch?
+SELECT time_of_day,
+        AVG(rating) AS Rating
+FROM sales
+WHERE branch= 'C'    -- can take any branch
+GROUP BY time_of_day
+ORDER BY Rating DESC;
+-- Branch A and C are doing well in ratings, branch B needs to do a 
+-- little more to get better ratings.
+
+
+-- Which day of the week has the best avg ratings?
+SELECT day_name,
+        AVG(rating) AS Rating
+FROM sales
+GROUP BY day_name
+ORDER BY Rating DESC;
+-- Mon, Tue and Friday are the top best days for good ratings
+
+-- why is that the case, how many sales are made on these days?
+SELECT day_name,
+        AVG(rating) AS Rating,
+        COUNT(quantity) AS COUNT
+FROM sales
+WHERE day_name IN ('Monday','Tuesday','Friday')
+GROUP BY day_name
+ORDER BY COUNT DESC,Rating DESC;
+
+
+
+-- Which day of the week has the best average ratings per branch?
+
+SELECT day_name,
+        AVG(rating) AS AVG
+FROM sales
+WHERE branch= 'A'
+GROUP BY day_name
+ORDER BY AVG DESC;
